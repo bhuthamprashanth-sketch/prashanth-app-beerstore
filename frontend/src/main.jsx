@@ -7,9 +7,13 @@ import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import './index.css';
 
+const envBasePaths = ['/prash-dev1', '/prash-qa1', '/prash-stg'];
+const matchedBasePath = envBasePaths.find((basePath) => window.location.pathname.startsWith(basePath));
+const routerBaseName = matchedBasePath || undefined;
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={routerBaseName}>
       <AuthProvider>
         <CartProvider>
           <App />
