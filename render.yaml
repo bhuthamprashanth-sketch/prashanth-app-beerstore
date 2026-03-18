@@ -3,12 +3,16 @@ services:
   - type: web
     name: prashanth-app-beerstore
     runtime: node
-    plan: free
+    plan: starter
     branch: main
     autoDeploy: true
     buildCommand: npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build
     startCommand: node backend/server.js
     healthCheckPath: /api/health
+    disk:
+      name: prashanth-app-beerstore-data
+      mountPath: /var/data/beerstore
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 20
@@ -16,17 +20,23 @@ services:
         value: BeerStore_PROD_2026_Key
       - key: ENV_NAME
         value: prod
+      - key: DATA_DIR
+        value: /var/data/beerstore
 
   # ── STG ── (branch: release)
   - type: web
     name: prashanth-app-beerstore-stg
     runtime: node
-    plan: free
+    plan: starter
     branch: release
     autoDeploy: true
     buildCommand: npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build
     startCommand: node backend/server.js
     healthCheckPath: /api/health
+    disk:
+      name: prashanth-app-beerstore-stg-data
+      mountPath: /var/data/beerstore
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 20
@@ -34,17 +44,23 @@ services:
         value: BeerStore_STG_2026_Key
       - key: ENV_NAME
         value: stg
+      - key: DATA_DIR
+        value: /var/data/beerstore
 
   # ── QA1 ── (branch: qa)
   - type: web
     name: prashanth-app-beerstore-qa1
     runtime: node
-    plan: free
+    plan: starter
     branch: qa
     autoDeploy: true
     buildCommand: npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build
     startCommand: node backend/server.js
     healthCheckPath: /api/health
+    disk:
+      name: prashanth-app-beerstore-qa1-data
+      mountPath: /var/data/beerstore
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 20
@@ -52,17 +68,23 @@ services:
         value: BeerStore_QA1_2026_Key
       - key: ENV_NAME
         value: qa1
+      - key: DATA_DIR
+        value: /var/data/beerstore
 
   # ── DEV1 ── (branch: develop)
   - type: web
     name: prashanth-app-beerstore-dev1
     runtime: node
-    plan: free
+    plan: starter
     branch: develop
     autoDeploy: true
     buildCommand: npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build
     startCommand: node backend/server.js
     healthCheckPath: /api/health
+    disk:
+      name: prashanth-app-beerstore-dev1-data
+      mountPath: /var/data/beerstore
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 20
@@ -70,3 +92,5 @@ services:
         value: BeerStore_DEV1_2026_Key
       - key: ENV_NAME
         value: dev1
+      - key: DATA_DIR
+        value: /var/data/beerstore
