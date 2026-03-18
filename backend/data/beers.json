@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "name": "Kingfisher Light",
+    "brand": "Kingfisher",
+    "type": "Light Lager",
+    "price": 120,
+    "stock": 100,
+    "description": "A refreshing light lager with a crisp, clean taste. Perfect for a casual evening.",
+    "abv": "4.8%",
+    "color": "blue",
+    "emoji": "🍺"
+  },
+  {
+    "id": 2,
+    "name": "Kingfisher Strong",
+    "brand": "Kingfisher",
+    "type": "Strong Lager",
+    "price": 150,
+    "stock": 80,
+    "description": "Bold and robust with a strong malt character. For those who like it intense.",
+    "abv": "8.0%",
+    "color": "orange",
+    "emoji": "🍺"
+  },
+  {
+    "id": 3,
+    "name": "KF Ultra Light",
+    "brand": "KF Ultra",
+    "type": "Premium Light",
+    "price": 140,
+    "stock": 60,
+    "description": "Premium ultra-filtered light beer with a smooth, refined finish.",
+    "abv": "5.0%",
+    "color": "purple",
+    "emoji": "🍺"
+  },
+  {
+    "id": 4,
+    "name": "KF Ultra Strong",
+    "brand": "KF Ultra",
+    "type": "Premium Strong",
+    "price": 170,
+    "stock": 50,
+    "description": "Ultra premium strong beer with rich, complex flavors and full body.",
+    "abv": "8.5%",
+    "color": "red",
+    "emoji": "🍺"
+  },
+  {
+    "id": 5,
+    "name": "Budweiser",
+    "brand": "Budweiser",
+    "type": "American Lager",
+    "price": 180,
+    "stock": 90,
+    "description": "The King of Beers. A smooth, refreshing American-style lager.",
+    "abv": "5.0%",
+    "color": "crimson",
+    "emoji": "🍺"
+  },
+  {
+    "id": 6,
+    "name": "Breezer",
+    "brand": "Bacardi",
+    "type": "Alcopop",
+    "price": 130,
+    "stock": 70,
+    "description": "Refreshing tropical fruit flavored alcoholic drink. Sweet, fruity and fun!",
+    "abv": "4.8%",
+    "color": "pink",
+    "emoji": "🍹"
+  }
+]

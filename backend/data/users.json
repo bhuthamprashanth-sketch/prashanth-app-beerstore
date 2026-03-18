@@ -1,0 +1,26 @@
+[
+  {
+    "id": "202ebaa5-ce29-4d6c-8eb7-085d38a02fbb",
+    "username": "admin",
+    "password": "$2a$10$xedGZ6jYo.HZzCyT8AH6SuZHwcNdJwg3rN4m8U3rDX4DQrimb5y9O",
+    "email": "admin@beerstore.com",
+    "phone": "9999999999",
+    "address": "BeerStore HQ, Bangalore",
+    "role": "admin",
+    "createdAt": "2026-03-17T15:48:15.633Z",
+    "lastLogin": null,
+    "loginCount": 0
+  },
+  {
+    "id": "f00fdd4c-0157-46d0-9f42-b5abf77ae283",
+    "username": "prashanth",
+    "email": "bhuthamprashanth@gmail.com",
+    "password": "$2a$10$ax5eopluG9C4u7C7kQ902OgL1egrn3RPijA.I3/S0vLrJLWKV4x1C",
+    "phone": "9014394361",
+    "address": "d2-46 anitha nilayam chanadanagar 500050",
+    "role": "customer",
+    "createdAt": "2026-03-17T15:58:47.082Z",
+    "lastLogin": null,
+    "loginCount": 0
+  }
+]
