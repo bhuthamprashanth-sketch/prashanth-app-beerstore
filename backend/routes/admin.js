@@ -1,5 +1,5 @@
 const express = require('express');
-const { readUsers, readOrders, readBeers, writeOrders } = require('../data/database');
+const { readUsers, readOrders, readBeers, writeOrders, getCustomersOnly, sanitizeUser } = require('../data/database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -9,11 +9,10 @@ router.use(authenticateToken, requireAdmin);
 
 // GET /api/admin/stats
 router.get('/stats', (req, res) => {
-  const users = readUsers();
+  const customers = getCustomersOnly();
   const orders = readOrders();
   const beers = readBeers();
 
-  const customers = users.filter(u => u.role === 'customer');
   const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
   const totalOrders = orders.length;
   const activeLogins = customers.filter(u => u.lastLogin).length;
@@ -48,9 +47,7 @@ router.get('/stats', (req, res) => {
 
 // GET /api/admin/users
 router.get('/users', (req, res) => {
-  const users = readUsers();
-  const safeUsers = users
-    .filter(u => u.role === 'customer')
+  const customers = getCustomersOnly()
     .map(u => ({
       id: u.id,
       username: u.username,
@@ -62,7 +59,7 @@ router.get('/users', (req, res) => {
       loginCount: u.loginCount || 0
     }))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  res.json(safeUsers);
+  res.json(customers);
 });
 
 // GET /api/admin/orders
@@ -96,6 +93,17 @@ router.patch('/orders/:id/status', (req, res) => {
 router.get('/inventory', (req, res) => {
   const beers = readBeers();
   res.json(beers);
+});
+
+// GET /api/admin/bank-details (payment information)
+router.get('/bank-details', (req, res) => {
+  res.json({
+    bankName: 'ICIC Bank',
+    accountHolder: 'Bhutham Prashanth',
+    accountNumber: '440001001205',
+    ifscCode: 'ICIC0004400',
+    note: 'All customer payments are credited directly to this account'
+  });
 });
 
 module.exports = router;
