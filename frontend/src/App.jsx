@@ -33,6 +33,10 @@ export default function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to={user ? (user.role === 'admin' ? '/admin' : '/') : '/login'} replace />} />
       </Routes>
+
+      <footer className="border-t border-white/5 py-3 text-center text-xs text-zinc-600">
+        © {new Date().getFullYear()} Copyrights by BhuthamPrashanth
+      </footer>
     </div>
   );
 }
