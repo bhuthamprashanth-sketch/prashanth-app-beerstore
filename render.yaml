@@ -1,8 +1,10 @@
 services:
+  # ── PROD ── (branch: main)
   - type: web
     name: prashanth-app-beerstore
     runtime: node
     plan: free
+    branch: main
     autoDeploy: true
     buildCommand: npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build
     startCommand: node backend/server.js
@@ -11,4 +13,60 @@ services:
       - key: NODE_VERSION
         value: 20
       - key: JWT_SECRET
-        value: BeerStore_2026_Secure_Long_Key_12345
+        value: BeerStore_PROD_2026_Key
+      - key: ENV_NAME
+        value: prod
+
+  # ── STG ── (branch: release)
+  - type: web
+    name: prashanth-app-beerstore-stg
+    runtime: node
+    plan: free
+    branch: release
+    autoDeploy: true
+    buildCommand: npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build
+    startCommand: node backend/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: JWT_SECRET
+        value: BeerStore_STG_2026_Key
+      - key: ENV_NAME
+        value: stg
+
+  # ── QA1 ── (branch: qa)
+  - type: web
+    name: prashanth-app-beerstore-qa1
+    runtime: node
+    plan: free
+    branch: qa
+    autoDeploy: true
+    buildCommand: npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build
+    startCommand: node backend/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: JWT_SECRET
+        value: BeerStore_QA1_2026_Key
+      - key: ENV_NAME
+        value: qa1
+
+  # ── DEV1 ── (branch: develop)
+  - type: web
+    name: prashanth-app-beerstore-dev1
+    runtime: node
+    plan: free
+    branch: develop
+    autoDeploy: true
+    buildCommand: npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build
+    startCommand: node backend/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: JWT_SECRET
+        value: BeerStore_DEV1_2026_Key
+      - key: ENV_NAME
+        value: dev1
