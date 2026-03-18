@@ -4,9 +4,11 @@ services:
     runtime: node
     plan: free
     autoDeploy: true
-    buildCommand: npm install && npm run build
-    startCommand: npm run serve
+    buildCommand: npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix frontend run build
+    startCommand: node backend/server.js
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: 20
+      - key: JWT_SECRET
+        value: BeerStore_2026_Secure_Long_Key_12345
