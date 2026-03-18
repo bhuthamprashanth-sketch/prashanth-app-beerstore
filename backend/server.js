@@ -49,4 +49,18 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`🍺 BeerStore API running on http://localhost:${PORT}`);
+
+  // Keep-alive self-ping for Render free tier (prevents 15-min sleep)
+  if (process.env.RENDER_EXTERNAL_URL) {
+    const https = require('https');
+    const pingUrl = process.env.RENDER_EXTERNAL_URL + '/api/health';
+    setInterval(() => {
+      https.get(pingUrl, (res) => {
+        console.log(`[keep-alive] ping ${res.statusCode}`);
+      }).on('error', (err) => {
+        console.error('[keep-alive] ping failed:', err.message);
+      });
+    }, 14 * 60 * 1000); // every 14 minutes
+    console.log(`[keep-alive] enabled → ${pingUrl}`);
+  }
 });
