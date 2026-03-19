@@ -24,6 +24,18 @@ export default function Payment() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const loadRazorpayScript = () => new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
@@ -76,13 +88,64 @@ export default function Payment() {
         items: items.map((item) => ({ beerId: item.beerId, quantity: item.quantity }))
       };
 
-      const response = await axios.post('/api/orders', payload);
-      clearCart();
-      toast.success('Payment successful. Order created.');
-      navigate(`/order/${response.data.order.id}`);
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        toast.error('Unable to load payment gateway. Please try again.');
+        return;
+      }
+
+      const paymentOrderResponse = await axios.post('/api/orders/create-payment', payload);
+      const paymentData = paymentOrderResponse.data.payment;
+
+      const options = {
+        key: paymentData.keyId,
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        name: 'BeerStore',
+        description: 'BeerStore order payment',
+        order_id: paymentData.razorpayOrderId,
+        prefill: {
+          name: user?.username || '',
+          email: user?.email || '',
+          contact: user?.phone || ''
+        },
+        notes: {
+          localOrderId: paymentData.localOrderId,
+          paymentProvider: form.paymentMethod === 'upi' ? form.upiApp : 'card'
+        },
+        theme: {
+          color: '#f59e0b'
+        },
+        modal: {
+          ondismiss: () => {
+            setSubmitting(false);
+            toast.error('Payment cancelled');
+          }
+        },
+        handler: async (gatewayResponse) => {
+          try {
+            const verifyResponse = await axios.post('/api/orders/verify-payment', {
+              localOrderId: paymentData.localOrderId,
+              razorpayOrderId: gatewayResponse.razorpay_order_id,
+              razorpayPaymentId: gatewayResponse.razorpay_payment_id,
+              razorpaySignature: gatewayResponse.razorpay_signature
+            });
+
+            clearCart();
+            toast.success('Payment successful. Amount credited to admin bank account.');
+            navigate(`/order/${verifyResponse.data.order.id}`);
+          } catch (verifyError) {
+            toast.error(verifyError.response?.data?.error || 'Payment verification failed');
+          } finally {
+            setSubmitting(false);
+          }
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Unable to place order');
-    } finally {
       setSubmitting(false);
     }
   };
@@ -93,7 +156,7 @@ export default function Payment() {
         <p className="text-xs uppercase tracking-[0.3em] text-amber-200">Payment gateway</p>
         <h1 className="mt-3 text-4xl font-bold text-white">Complete payment for your cart items</h1>
         <p className="mt-3 text-zinc-400">
-          This checkout supports simulated UPI and card flows. After successful payment you will see dispatch location and estimated delivery time.
+          This checkout uses a secure gateway flow for UPI and card payments. After successful payment, you will see dispatch location and estimated delivery time.
         </p>
       </div>
 
@@ -185,7 +248,7 @@ export default function Payment() {
                 placeholder="yourname@upi"
                 className="input-field"
               />
-              <p className="mt-3 text-sm text-zinc-500">Selected app: {form.upiApp.toUpperCase()} | This demo flow records payment as successful and credits it to admin bank details.</p>
+              <p className="mt-3 text-sm text-zinc-500">Selected app: {form.upiApp.toUpperCase()} | Successful payment is verified and then credited to admin bank details.</p>
             </div>
           ) : (
             <div className="mt-6 grid gap-4 rounded-3xl border border-white/10 bg-black/20 p-5 sm:grid-cols-2">

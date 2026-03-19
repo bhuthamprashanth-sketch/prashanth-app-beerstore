@@ -18,6 +18,10 @@ services:
         value: 20
       - key: JWT_SECRET
         value: BeerStore_PROD_2026_Key
+      - key: RAZORPAY_KEY_ID
+        value: RAZORPAY_KEY_ID_PROD
+      - key: RAZORPAY_KEY_SECRET
+        value: RAZORPAY_KEY_SECRET_PROD
       - key: ENV_NAME
         value: prod
       - key: DATA_DIR
@@ -42,6 +46,10 @@ services:
         value: 20
       - key: JWT_SECRET
         value: BeerStore_STG_2026_Key
+      - key: RAZORPAY_KEY_ID
+        value: RAZORPAY_KEY_ID_STG
+      - key: RAZORPAY_KEY_SECRET
+        value: RAZORPAY_KEY_SECRET_STG
       - key: ENV_NAME
         value: stg
       - key: DATA_DIR
@@ -68,6 +76,10 @@ services:
         value: 20
       - key: JWT_SECRET
         value: BeerStore_QA1_2026_Key
+      - key: RAZORPAY_KEY_ID
+        value: RAZORPAY_KEY_ID_QA
+      - key: RAZORPAY_KEY_SECRET
+        value: RAZORPAY_KEY_SECRET_QA
       - key: ENV_NAME
         value: qa1
       - key: DATA_DIR
@@ -94,6 +106,10 @@ services:
         value: 20
       - key: JWT_SECRET
         value: BeerStore_DEV1_2026_Key
+      - key: RAZORPAY_KEY_ID
+        value: RAZORPAY_KEY_ID_DEV
+      - key: RAZORPAY_KEY_SECRET
+        value: RAZORPAY_KEY_SECRET_DEV
       - key: ENV_NAME
         value: dev1
       - key: DATA_DIR

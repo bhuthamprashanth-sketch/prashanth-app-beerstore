@@ -4,6 +4,7 @@ import { Activity, Boxes, IndianRupee, Landmark, RefreshCcw, Users, Warehouse } 
 import toast from 'react-hot-toast';
 
 const statusOptions = [
+  'payment_pending',
   'processing',
   'confirmed',
   'out_for_delivery',
