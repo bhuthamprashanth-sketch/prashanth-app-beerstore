@@ -72,7 +72,7 @@ router.get('/orders', (req, res) => {
 // PATCH /api/admin/orders/:id/status
 router.patch('/orders/:id/status', (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['processing', 'confirmed', 'out_for_delivery', 'delivered', 'cancelled'];
+  const validStatuses = ['payment_pending', 'accepted', 'processing', 'confirmed', 'out_for_delivery', 'delivered', 'cancelled'];
 
   if (!validStatuses.includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });

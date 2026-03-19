@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 
 const statusOptions = [
   'payment_pending',
+  'accepted',
   'processing',
   'confirmed',
   'out_for_delivery',

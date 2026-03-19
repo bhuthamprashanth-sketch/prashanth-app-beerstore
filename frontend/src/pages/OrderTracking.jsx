@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Clock3, MapPinned, PackageCheck, Route, ShieldCheck } from 'lucide-react';
+import { Bike, Clock3, MapPinned, PackageCheck, Phone, Route, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const statusLabels = {
+  payment_pending: 'Payment pending',
+  accepted: 'Order accepted',
   processing: 'Processing order',
   confirmed: 'Order confirmed',
   out_for_delivery: 'Out for delivery',
@@ -15,27 +17,48 @@ const statusLabels = {
 export default function OrderTracking() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
+  const [live, setLive] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadOrder = async () => {
+    let intervalId;
+
+    const loadOrder = async (silent = false) => {
       try {
-        const response = await axios.get(`/api/orders/${id}`);
-        setOrder(response.data);
+        const [orderResponse, liveResponse] = await Promise.all([
+          axios.get(`/api/orders/${id}`),
+          axios.get(`/api/orders/${id}/live`)
+        ]);
+        setOrder(orderResponse.data);
+        setLive(liveResponse.data);
       } catch (error) {
-        toast.error(error.response?.data?.error || 'Unable to load order');
+        if (!silent) {
+          toast.error(error.response?.data?.error || 'Unable to load order');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     loadOrder();
+    intervalId = setInterval(() => loadOrder(true), 10000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [id]);
 
   const progressIndex = useMemo(() => {
-    const statuses = ['processing', 'confirmed', 'out_for_delivery', 'delivered'];
-    return Math.max(statuses.indexOf(order?.status), 0);
-  }, [order?.status]);
+    const statuses = ['accepted', 'processing', 'confirmed', 'out_for_delivery', 'delivered'];
+    const status = live?.status || order?.status;
+    return Math.max(statuses.indexOf(status), 0);
+  }, [live?.status, order?.status]);
+
+  const activeStatus = live?.status || order?.status;
+  const etaMinutes = live?.estimatedDeliveryMinutes ?? order?.estimatedDeliveryMinutes ?? 0;
+  const partner = live?.tracking?.deliveryPartner;
+  const acceptedAt = live?.tracking?.acceptedAt || order?.createdAt;
+  const expectedAt = live?.estimatedArrivalTime || order?.estimatedArrivalTime;
 
   if (loading) {
     return (
@@ -59,7 +82,7 @@ export default function OrderTracking() {
     );
   }
 
-  const stages = ['processing', 'confirmed', 'out_for_delivery', 'delivered'];
+  const stages = ['accepted', 'processing', 'confirmed', 'out_for_delivery', 'delivered'];
 
   return (
     <div className="page-container pb-24">
@@ -69,20 +92,28 @@ export default function OrderTracking() {
           <div>
             <h1 className="text-4xl font-bold text-white">Track delivery for order {order.id.slice(0, 8)}</h1>
             <p className="mt-3 max-w-2xl text-zinc-300">
-              Payment was successful. Your order is being prepared and you can see the dispatch location and estimated arrival below.
+              Live tracking is enabled. You can see order acceptance, preparation, delivery partner movement, and expected reach time updates.
             </p>
           </div>
-          <div className="price-chip">{statusLabels[order.status] || order.status}</div>
+          <div className="price-chip">{statusLabels[activeStatus] || activeStatus}</div>
         </div>
       </section>
 
-      <section className="mt-8 grid gap-5 md:grid-cols-3">
+      <section className="mt-8 grid gap-5 md:grid-cols-4">
+        <div className="stat-card p-5">
+          <div className="flex items-center gap-3 text-emerald-200">
+            <ShieldCheck size={20} />
+            <p className="text-sm uppercase tracking-[0.24em] text-zinc-500">Accepted at</p>
+          </div>
+          <p className="mt-4 text-lg font-bold text-white">{acceptedAt ? new Date(acceptedAt).toLocaleTimeString() : 'Pending'}</p>
+        </div>
         <div className="stat-card p-5">
           <div className="flex items-center gap-3 text-amber-200">
             <Clock3 size={20} />
             <p className="text-sm uppercase tracking-[0.24em] text-zinc-500">ETA</p>
           </div>
-          <p className="mt-4 text-3xl font-bold text-white">{order.estimatedDeliveryMinutes} mins</p>
+          <p className="mt-4 text-3xl font-bold text-white">{etaMinutes} mins</p>
+          <p className="mt-2 text-xs text-zinc-400">{expectedAt ? `Reaches by ${new Date(expectedAt).toLocaleTimeString()}` : 'Updating...'}</p>
         </div>
         <div className="stat-card p-5">
           <div className="flex items-center gap-3 text-sky-200">
@@ -93,7 +124,7 @@ export default function OrderTracking() {
         </div>
         <div className="stat-card p-5">
           <div className="flex items-center gap-3 text-emerald-200">
-            <ShieldCheck size={20} />
+            <Bike size={20} />
             <p className="text-sm uppercase tracking-[0.24em] text-zinc-500">Delivery address</p>
           </div>
           <p className="mt-4 text-lg font-bold text-white">{order.deliveryAddress}</p>
@@ -123,6 +154,7 @@ export default function OrderTracking() {
                   <div className="pt-2">
                     <h3 className="text-lg font-bold text-white">{statusLabels[stage]}</h3>
                     <p className="mt-1 text-sm text-zinc-400">
+                      {stage === 'accepted' && 'Order is accepted by the store and assigned for preparation.'}
                       {stage === 'processing' && 'The store is packing your selected beers.'}
                       {stage === 'confirmed' && 'The order is verified and assigned to a delivery run.'}
                       {stage === 'out_for_delivery' && 'The rider has picked up the order and is on the way.'}
@@ -136,6 +168,26 @@ export default function OrderTracking() {
         </div>
 
         <div className="space-y-6">
+          <div className="hero-panel p-6 sm:p-8">
+            <div className="flex items-center gap-3">
+              <Bike size={20} className="text-amber-300" />
+              <h2 className="text-2xl font-bold text-white">Delivery partner live status</h2>
+            </div>
+            {partner ? (
+              <div className="mt-5 space-y-3 rounded-2xl bg-black/20 p-4">
+                <p className="text-white"><span className="text-zinc-400">Name:</span> {partner.name}</p>
+                <p className="text-white"><span className="text-zinc-400">Vehicle:</span> {partner.vehicle}</p>
+                <p className="flex items-center gap-2 text-white"><Phone size={16} className="text-zinc-400" /> {partner.phone}</p>
+                <p className="text-white"><span className="text-zinc-400">Current location:</span> {partner.currentLocation}</p>
+                <p className="text-white"><span className="text-zinc-400">Location status:</span> {partner.status}</p>
+                <p className="text-white"><span className="text-zinc-400">Distance:</span> {partner.distanceKm} km</p>
+                <p className="text-xs text-zinc-500">Auto-updates every 10 seconds</p>
+              </div>
+            ) : (
+              <p className="mt-5 text-zinc-400">Delivery partner will be assigned soon.</p>
+            )}
+          </div>
+
           <div className="hero-panel p-6 sm:p-8">
             <div className="flex items-center gap-3">
               <PackageCheck size={20} className="text-amber-300" />

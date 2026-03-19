@@ -13,6 +13,151 @@ const adminBankDetails = {
   ifscCode: 'ICIC0004400'
 };
 
+const deliveryPartners = [
+  { name: 'Ravi', phone: '9000012345', vehicle: 'KA-01-AB-2244' },
+  { name: 'Ajay', phone: '9000012346', vehicle: 'KA-02-CD-7788' },
+  { name: 'Kiran', phone: '9000012347', vehicle: 'KA-03-EF-9921' }
+];
+
+const getElapsedMinutes = (fromIso, toIso = new Date().toISOString()) => {
+  return Math.max(0, Math.floor((new Date(toIso) - new Date(fromIso)) / 60000));
+};
+
+const getAutoStatusFromElapsed = (elapsedMinutes) => {
+  if (elapsedMinutes < 2) return 'accepted';
+  if (elapsedMinutes < 8) return 'processing';
+  if (elapsedMinutes < 20) return 'out_for_delivery';
+  return 'delivered';
+};
+
+const getDeliveryProgress = (elapsedMinutes) => {
+  if (elapsedMinutes <= 8) return 0;
+  if (elapsedMinutes >= 20) return 1;
+  return (elapsedMinutes - 8) / 12;
+};
+
+const selectDeliveryPartner = (orderId = '') => {
+  const sum = orderId.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return deliveryPartners[sum % deliveryPartners.length];
+};
+
+const ensureTimeline = (order) => {
+  if (Array.isArray(order.statusTimeline) && order.statusTimeline.length) {
+    return order.statusTimeline;
+  }
+
+  const createdAt = order.createdAt || new Date().toISOString();
+  return [
+    {
+      status: order.status === 'payment_pending' ? 'payment_pending' : 'accepted',
+      label: order.status === 'payment_pending' ? 'Payment pending' : 'Order accepted',
+      at: createdAt
+    }
+  ];
+};
+
+const appendStatusIfMissing = (timeline, status, at, label) => {
+  if (!timeline.find((entry) => entry.status === status)) {
+    timeline.push({ status, at, label });
+  }
+};
+
+const hydrateTracking = (order) => {
+  const elapsedMinutes = getElapsedMinutes(order.createdAt);
+  const progress = getDeliveryProgress(elapsedMinutes);
+  const partner = selectDeliveryPartner(order.id);
+  const deliveryHub = order.deliveryHub || 'BeerStore Hub, Bengaluru';
+
+  let locationStatus = 'Preparing at hub';
+  let currentLocation = deliveryHub;
+  let distanceKm = 6;
+
+  if (order.status === 'out_for_delivery') {
+    if (progress < 0.3) {
+      locationStatus = 'Left delivery hub';
+      currentLocation = `On route from ${deliveryHub}`;
+    } else if (progress < 0.75) {
+      locationStatus = 'Near your area';
+      currentLocation = 'Approaching your locality';
+    } else {
+      locationStatus = 'Almost reached';
+      currentLocation = 'Very close to your address';
+    }
+    distanceKm = Math.max(0.2, Number((6 * (1 - progress)).toFixed(1)));
+  }
+
+  if (order.status === 'delivered') {
+    locationStatus = 'Delivered';
+    currentLocation = order.deliveryAddress;
+    distanceKm = 0;
+  }
+
+  return {
+    acceptedAt: (order.statusTimeline || []).find((t) => t.status === 'accepted')?.at || order.createdAt,
+    estimatedArrivalTime: order.estimatedArrivalTime || null,
+    etaMinutes: Math.max(0, order.estimatedDeliveryMinutes || 0),
+    progress,
+    deliveryPartner: {
+      ...partner,
+      status: locationStatus,
+      currentLocation,
+      distanceKm
+    }
+  };
+};
+
+const applyAutoTrackingProgress = (order) => {
+  if (['cancelled', 'delivered', 'payment_pending'].includes(order.status)) {
+    order.statusTimeline = ensureTimeline(order);
+    order.tracking = hydrateTracking(order);
+    return false;
+  }
+
+  const elapsedMinutes = getElapsedMinutes(order.createdAt);
+  const desiredStatus = getAutoStatusFromElapsed(elapsedMinutes);
+  const statusOrder = ['accepted', 'processing', 'confirmed', 'out_for_delivery', 'delivered'];
+  const currentIndex = statusOrder.indexOf(order.status);
+  const desiredIndex = statusOrder.indexOf(desiredStatus);
+  const timeline = ensureTimeline(order);
+  let changed = false;
+
+  if (desiredIndex > currentIndex) {
+    order.status = desiredStatus;
+    order.updatedAt = new Date().toISOString();
+    changed = true;
+  }
+
+  appendStatusIfMissing(timeline, 'accepted', order.createdAt, 'Order accepted');
+  if (['processing', 'confirmed', 'out_for_delivery', 'delivered'].includes(order.status)) {
+    appendStatusIfMissing(timeline, 'processing', order.updatedAt || order.createdAt, 'Order is being prepared');
+  }
+  if (['confirmed', 'out_for_delivery', 'delivered'].includes(order.status)) {
+    appendStatusIfMissing(timeline, 'confirmed', order.updatedAt || order.createdAt, 'Order confirmed by store');
+  }
+  if (['out_for_delivery', 'delivered'].includes(order.status)) {
+    appendStatusIfMissing(timeline, 'out_for_delivery', order.updatedAt || order.createdAt, 'Delivery partner is on the way');
+  }
+  if (order.status === 'delivered') {
+    appendStatusIfMissing(timeline, 'delivered', order.updatedAt || new Date().toISOString(), 'Order delivered successfully');
+  }
+
+  order.statusTimeline = timeline;
+
+  if (!order.estimatedArrivalTime && order.estimatedDeliveryMinutes) {
+    order.estimatedArrivalTime = new Date(
+      new Date(order.createdAt).getTime() + order.estimatedDeliveryMinutes * 60000
+    ).toISOString();
+    changed = true;
+  }
+
+  if (order.estimatedArrivalTime) {
+    order.estimatedDeliveryMinutes = Math.max(0, getElapsedMinutes(new Date().toISOString(), order.estimatedArrivalTime));
+  }
+
+  order.tracking = hydrateTracking(order);
+  return changed;
+};
+
 const getRazorpayClient = () => {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -110,6 +255,9 @@ router.post('/create-payment', authenticateToken, async (req, res) => {
     });
 
     const orders = readOrders();
+    const createdAt = new Date().toISOString();
+    const etaMinutes = Math.floor(Math.random() * 20) + 25;
+    const estimatedArrivalTime = new Date(new Date(createdAt).getTime() + etaMinutes * 60000).toISOString();
     orders.push({
       id: localOrderId,
       userId: req.user.id,
@@ -125,12 +273,17 @@ router.post('/create-payment', authenticateToken, async (req, res) => {
       deliveryAddress: deliveryAddress.trim(),
       deliveryHub: null,
       status: 'payment_pending',
-      estimatedDeliveryMinutes: null,
+      estimatedDeliveryMinutes: etaMinutes,
+      estimatedArrivalTime,
       creditStatus: 'pending',
       creditedToBank: adminBankDetails,
       creditedAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      statusTimeline: [
+        { status: 'payment_pending', label: 'Payment pending', at: createdAt }
+      ],
+      tracking: null,
+      createdAt,
+      updatedAt: createdAt
     });
     writeOrders(orders);
 
@@ -200,13 +353,20 @@ router.post('/verify-payment', authenticateToken, (req, res) => {
       paymentGatewayOrderId: razorpayOrderId,
       paymentGatewayPaymentId: razorpayPaymentId,
       paymentStatus: 'completed',
-      status: 'processing',
+      status: 'accepted',
       deliveryHub,
       estimatedDeliveryMinutes: deliveryMinutes,
+      estimatedArrivalTime: new Date(new Date(order.createdAt).getTime() + deliveryMinutes * 60000).toISOString(),
       creditStatus: 'credited',
       creditedAt: new Date().toISOString(),
+      statusTimeline: [
+        ...ensureTimeline(order),
+        { status: 'accepted', label: 'Order accepted', at: new Date().toISOString() }
+      ],
       updatedAt: new Date().toISOString()
     };
+
+    applyAutoTrackingProgress(orders[orderIdx]);
     writeOrders(orders);
 
     return res.json({
@@ -275,6 +435,7 @@ router.post('/', authenticateToken, (req, res) => {
   const deliveryMinutes = Math.floor(Math.random() * 20) + 25; // 25-45 minutes
   const deliveryHub = deliveryHubs[Math.floor(Math.random() * deliveryHubs.length)];
 
+  const createdAt = new Date().toISOString();
   const newOrder = {
     id: uuidv4(),
     userId: req.user.id,
@@ -289,14 +450,21 @@ router.post('/', authenticateToken, (req, res) => {
     paymentGatewayPaymentId: null,
     creditedToBank: adminBankDetails,
     creditStatus: 'credited',
-    creditedAt: new Date().toISOString(),
+    creditedAt: createdAt,
     deliveryAddress: deliveryAddress.trim(),
     deliveryHub,
-    status: 'processing',
+    status: 'accepted',
     estimatedDeliveryMinutes: deliveryMinutes,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    estimatedArrivalTime: new Date(new Date(createdAt).getTime() + deliveryMinutes * 60000).toISOString(),
+    statusTimeline: [
+      { status: 'accepted', label: 'Order accepted', at: createdAt }
+    ],
+    tracking: null,
+    createdAt,
+    updatedAt: createdAt
   };
+
+  applyAutoTrackingProgress(newOrder);
 
   const orders = readOrders();
   orders.push(newOrder);
@@ -311,9 +479,20 @@ router.post('/', authenticateToken, (req, res) => {
 // GET /api/orders/my-orders - Get current user's orders
 router.get('/my-orders', authenticateToken, (req, res) => {
   const orders = readOrders();
+  let changed = false;
   const userOrders = orders
     .filter(o => o.userId === req.user.id)
+    .map((order) => {
+      const orderChanged = applyAutoTrackingProgress(order);
+      if (orderChanged) changed = true;
+      return order;
+    })
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  if (changed) {
+    writeOrders(orders);
+  }
+
   res.json(userOrders);
 });
 
@@ -329,7 +508,37 @@ router.get('/:id', authenticateToken, (req, res) => {
     return res.status(403).json({ error: 'Access denied' });
   }
 
+  const changed = applyAutoTrackingProgress(order);
+  if (changed) {
+    writeOrders(orders);
+  }
+
   res.json(order);
+});
+
+// GET /api/orders/:id/live - lightweight live tracking payload for frequent polling
+router.get('/:id/live', authenticateToken, (req, res) => {
+  const orders = readOrders();
+  const order = orders.find((o) => o.id === req.params.id);
+
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  if (order.userId !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const changed = applyAutoTrackingProgress(order);
+  if (changed) {
+    writeOrders(orders);
+  }
+
+  return res.json({
+    id: order.id,
+    status: order.status,
+    statusTimeline: order.statusTimeline || [],
+    estimatedDeliveryMinutes: order.estimatedDeliveryMinutes,
+    estimatedArrivalTime: order.estimatedArrivalTime,
+    tracking: order.tracking || hydrateTracking(order)
+  });
 });
 
 module.exports = router;
