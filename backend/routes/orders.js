@@ -79,16 +79,22 @@ router.post('/create-payment', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Delivery address is required' });
   }
 
-  const razorpay = getRazorpayClient();
-  if (!razorpay) {
-    return res.status(503).json({
-      error: 'Payment gateway is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.'
-    });
-  }
-
   try {
     const beers = readBeers();
     const { orderItems, total } = buildOrderItemsAndTotal(items, beers);
+    const razorpay = getRazorpayClient();
+
+    if (!razorpay) {
+      return res.status(200).json({
+        message: 'Payment gateway not configured. Falling back to demo checkout.',
+        payment: {
+          mode: 'demo',
+          localOrderId: null,
+          amount: Math.round(total * 100),
+          currency: 'INR'
+        }
+      });
+    }
 
     const localOrderId = uuidv4();
     const paymentOrder = await razorpay.orders.create({

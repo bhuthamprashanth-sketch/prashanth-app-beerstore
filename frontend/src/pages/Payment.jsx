@@ -97,6 +97,15 @@ export default function Payment() {
       const paymentOrderResponse = await axios.post('/api/orders/create-payment', payload);
       const paymentData = paymentOrderResponse.data.payment;
 
+      if (paymentData.mode === 'demo') {
+        const demoResponse = await axios.post('/api/orders', payload);
+        clearCart();
+        toast.success('Demo payment successful. Amount marked as credited to admin bank account.');
+        navigate(`/order/${demoResponse.data.order.id}`);
+        setSubmitting(false);
+        return;
+      }
+
       const options = {
         key: paymentData.keyId,
         amount: paymentData.amount,
