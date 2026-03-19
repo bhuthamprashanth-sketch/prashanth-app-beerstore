@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Bike, Clock3, MapPinned, PackageCheck, Phone, Route, ShieldCheck } from 'lucide-react';
+import { Bike, Clock3, ExternalLink, MapPinned, PackageCheck, Phone, Route, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const statusLabels = {
@@ -59,6 +59,15 @@ export default function OrderTracking() {
   const partner = live?.tracking?.deliveryPartner;
   const acceptedAt = live?.tracking?.acceptedAt || order?.createdAt;
   const expectedAt = live?.estimatedArrivalTime || order?.estimatedArrivalTime;
+  const mapQuery = partner?.currentCoordinates
+    ? `${partner.currentCoordinates.lat},${partner.currentCoordinates.lng}`
+    : null;
+  const googleMapEmbedUrl = mapQuery
+    ? `https://maps.google.com/maps?q=${mapQuery}&z=15&output=embed`
+    : null;
+  const directionsUrl = partner?.originCoordinates && partner?.destinationCoordinates
+    ? `https://www.google.com/maps/dir/?api=1&origin=${partner.originCoordinates.lat},${partner.originCoordinates.lng}&destination=${partner.destinationCoordinates.lat},${partner.destinationCoordinates.lng}&travelmode=driving`
+    : null;
 
   if (loading) {
     return (
@@ -168,6 +177,43 @@ export default function OrderTracking() {
         </div>
 
         <div className="space-y-6">
+          <div className="hero-panel p-6 sm:p-8">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <MapPinned size={20} className="text-amber-300" />
+                <h2 className="text-2xl font-bold text-white">Google Map live location</h2>
+              </div>
+              {directionsUrl && (
+                <a
+                  href={directionsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-amber-300"
+                >
+                  Open route <ExternalLink size={16} />
+                </a>
+              )}
+            </div>
+            <div className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-white/5">
+              {googleMapEmbedUrl ? (
+                <iframe
+                  title="Delivery partner live map"
+                  src={googleMapEmbedUrl}
+                  className="h-72 w-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              ) : (
+                <div className="flex h-72 items-center justify-center text-zinc-400">
+                  Live location map will appear once the order is accepted.
+                </div>
+              )}
+            </div>
+            <p className="mt-3 text-sm text-zinc-500">
+              The map auto-refreshes with the rider position while the order is on the way.
+            </p>
+          </div>
+
           <div className="hero-panel p-6 sm:p-8">
             <div className="flex items-center gap-3">
               <Bike size={20} className="text-amber-300" />

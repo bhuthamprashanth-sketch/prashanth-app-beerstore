@@ -19,21 +19,29 @@ const deliveryPartners = [
   { name: 'Kiran', phone: '9000012347', vehicle: 'KA-03-EF-9921' }
 ];
 
+const hubCoordinates = {
+  'BeerStore Hub, MG Road, Bengaluru': { lat: 12.9756, lng: 77.6050 },
+  'BeerStore Hub, Indiranagar, Bengaluru': { lat: 12.9784, lng: 77.6408 },
+  'BeerStore Hub, Koramangala, Bengaluru': { lat: 12.9352, lng: 77.6245 },
+  'BeerStore Hub, Bengaluru': { lat: 12.9716, lng: 77.5946 }
+};
+
 const getElapsedMinutes = (fromIso, toIso = new Date().toISOString()) => {
   return Math.max(0, Math.floor((new Date(toIso) - new Date(fromIso)) / 60000));
 };
 
 const getAutoStatusFromElapsed = (elapsedMinutes) => {
   if (elapsedMinutes < 2) return 'accepted';
-  if (elapsedMinutes < 8) return 'processing';
+  if (elapsedMinutes < 6) return 'processing';
+  if (elapsedMinutes < 10) return 'confirmed';
   if (elapsedMinutes < 20) return 'out_for_delivery';
   return 'delivered';
 };
 
 const getDeliveryProgress = (elapsedMinutes) => {
-  if (elapsedMinutes <= 8) return 0;
+  if (elapsedMinutes <= 10) return 0;
   if (elapsedMinutes >= 20) return 1;
-  return (elapsedMinutes - 8) / 12;
+  return (elapsedMinutes - 10) / 10;
 };
 
 const selectDeliveryPartner = (orderId = '') => {
@@ -62,17 +70,44 @@ const appendStatusIfMissing = (timeline, status, at, label) => {
   }
 };
 
+const getDestinationCoordinates = (order) => {
+  const base = hubCoordinates[order.deliveryHub] || hubCoordinates['BeerStore Hub, Bengaluru'];
+  const seed = order.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const latOffset = ((seed % 12) - 6) * 0.0036;
+  const lngOffset = (((seed >> 2) % 12) - 6) * 0.0031;
+
+  return {
+    lat: Number((base.lat + latOffset).toFixed(6)),
+    lng: Number((base.lng + lngOffset).toFixed(6))
+  };
+};
+
+const interpolateCoordinates = (origin, destination, progress) => ({
+  lat: Number((origin.lat + (destination.lat - origin.lat) * progress).toFixed(6)),
+  lng: Number((origin.lng + (destination.lng - origin.lng) * progress).toFixed(6))
+});
+
 const hydrateTracking = (order) => {
   const elapsedMinutes = getElapsedMinutes(order.createdAt);
   const progress = getDeliveryProgress(elapsedMinutes);
   const partner = selectDeliveryPartner(order.id);
   const deliveryHub = order.deliveryHub || 'BeerStore Hub, Bengaluru';
+  const originCoordinates = hubCoordinates[deliveryHub] || hubCoordinates['BeerStore Hub, Bengaluru'];
+  const destinationCoordinates = getDestinationCoordinates(order);
+  let currentCoordinates = originCoordinates;
 
   let locationStatus = 'Preparing at hub';
   let currentLocation = deliveryHub;
   let distanceKm = 6;
 
+  if (order.status === 'confirmed') {
+    locationStatus = 'Delivery partner assigned';
+    currentLocation = `Partner assigned near ${deliveryHub}`;
+    distanceKm = 5.5;
+  }
+
   if (order.status === 'out_for_delivery') {
+    currentCoordinates = interpolateCoordinates(originCoordinates, destinationCoordinates, progress);
     if (progress < 0.3) {
       locationStatus = 'Left delivery hub';
       currentLocation = `On route from ${deliveryHub}`;
@@ -90,6 +125,7 @@ const hydrateTracking = (order) => {
     locationStatus = 'Delivered';
     currentLocation = order.deliveryAddress;
     distanceKm = 0;
+    currentCoordinates = destinationCoordinates;
   }
 
   return {
@@ -101,7 +137,10 @@ const hydrateTracking = (order) => {
       ...partner,
       status: locationStatus,
       currentLocation,
-      distanceKm
+      distanceKm,
+      currentCoordinates,
+      originCoordinates,
+      destinationCoordinates
     }
   };
 };
