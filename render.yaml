@@ -46,6 +46,8 @@ services:
         value: stg
       - key: DATA_DIR
         value: /var/data/beerstore
+      - key: RESET_DEFAULT_ADMIN_PASSWORD
+        value: true
 
   # ── QA1 ── (branch: qa)
   - type: web
@@ -70,6 +72,8 @@ services:
         value: qa1
       - key: DATA_DIR
         value: /var/data/beerstore
+      - key: RESET_DEFAULT_ADMIN_PASSWORD
+        value: true
 
   # ── DEV1 ── (branch: develop)
   - type: web
@@ -94,3 +98,5 @@ services:
         value: dev1
       - key: DATA_DIR
         value: /var/data/beerstore
+      - key: RESET_DEFAULT_ADMIN_PASSWORD
+        value: true

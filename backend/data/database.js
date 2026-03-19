@@ -125,4 +125,53 @@ const writeUsers = (data) => fs.writeFileSync(usersFile, JSON.stringify(data, nu
 const writeOrders = (data) => fs.writeFileSync(ordersFile, JSON.stringify(data, null, 2), 'utf8');
 const writeBeers = (data) => fs.writeFileSync(beersFile, JSON.stringify(data, null, 2), 'utf8');
 
-module.exports = { readUsers, readOrders, readBeers, writeUsers, writeOrders, writeBeers, uuidv4 };
+// Ensure admin account always exists in persisted environments.
+const ensureAdminAccount = () => {
+  const users = readUsers();
+  const adminEmail = 'admin@beerstore.com';
+  const resetAdminPassword = process.env.RESET_DEFAULT_ADMIN_PASSWORD === 'true';
+
+  const existingAdmin = users.find((u) => u.email === adminEmail || u.role === 'admin');
+
+  if (!existingAdmin) {
+    users.unshift({
+      id: uuidv4(),
+      username: 'admin',
+      password: bcrypt.hashSync('admin123', 10),
+      email: adminEmail,
+      phone: '9999999999',
+      address: 'BeerStore HQ, Bangalore',
+      role: 'admin',
+      createdAt: new Date().toISOString(),
+      lastLogin: null,
+      loginCount: 0
+    });
+    writeUsers(users);
+    return;
+  }
+
+  if (resetAdminPassword) {
+    existingAdmin.username = 'admin';
+    existingAdmin.email = adminEmail;
+    existingAdmin.role = 'admin';
+    existingAdmin.password = bcrypt.hashSync('admin123', 10);
+    writeUsers(users);
+  }
+};
+
+ensureAdminAccount();
+
+// Hide admin users from customer endpoints
+const getCustomersOnly = () => {
+  const users = readUsers();
+  return users.filter(u => u.role === 'customer');
+};
+
+// Sanitize user object (remove sensitive fields + hide admin)
+const sanitizeUser = (user) => {
+  if (!user || user.role === 'admin') return null;
+  const { password, ...safe } = user;
+  return safe;
+};
+
+module.exports = { readUsers, readOrders, readBeers, writeUsers, writeOrders, writeBeers, uuidv4, getCustomersOnly, sanitizeUser };
