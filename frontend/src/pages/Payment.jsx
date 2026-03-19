@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 
 const initialForm = {
   paymentMethod: 'upi',
+  upiApp: 'phonepe',
   deliveryAddress: '',
   upiId: '',
   cardNumber: '',
@@ -44,6 +45,11 @@ export default function Payment() {
       return false;
     }
 
+    if (form.paymentMethod === 'upi' && !['phonepe', 'paytm', 'gpay', 'bhim'].includes(form.upiApp)) {
+      toast.error('Please select a UPI app');
+      return false;
+    }
+
     if (form.paymentMethod === 'card') {
       if (!form.cardNumber.trim() || !form.cardHolder.trim() || !form.expiry.trim() || !form.cvv.trim()) {
         toast.error('Please fill all card details');
@@ -65,6 +71,7 @@ export default function Payment() {
     try {
       const payload = {
         paymentMethod: form.paymentMethod,
+        paymentProvider: form.paymentMethod === 'upi' ? form.upiApp : 'card',
         deliveryAddress: form.deliveryAddress,
         items: items.map((item) => ({ beerId: item.beerId, quantity: item.quantity }))
       };
@@ -147,6 +154,28 @@ export default function Payment() {
 
           {form.paymentMethod === 'upi' ? (
             <div className="mt-6 rounded-3xl border border-white/10 bg-black/20 p-5">
+              <label className="label">Choose UPI app</label>
+              <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                {[
+                  { id: 'phonepe', label: 'PhonePe' },
+                  { id: 'paytm', label: 'Paytm' },
+                  { id: 'gpay', label: 'Google Pay' },
+                  { id: 'bhim', label: 'BHIM UPI' }
+                ].map((app) => (
+                  <button
+                    key={app.id}
+                    type="button"
+                    onClick={() => setForm((current) => ({ ...current, upiApp: app.id }))}
+                    className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                      form.upiApp === app.id
+                        ? 'border-amber-300/50 bg-amber-300/10 text-amber-200'
+                        : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10'
+                    }`}
+                  >
+                    {app.label}
+                  </button>
+                ))}
+              </div>
               <label className="label">UPI ID</label>
               <input
                 type="text"
@@ -156,7 +185,7 @@ export default function Payment() {
                 placeholder="yourname@upi"
                 className="input-field"
               />
-              <p className="mt-3 text-sm text-zinc-500">This is a demo payment flow. The app records a successful payment after form validation.</p>
+              <p className="mt-3 text-sm text-zinc-500">Selected app: {form.upiApp.toUpperCase()} | This demo flow records payment as successful and credits it to admin bank details.</p>
             </div>
           ) : (
             <div className="mt-6 grid gap-4 rounded-3xl border border-white/10 bg-black/20 p-5 sm:grid-cols-2">

@@ -6,13 +6,16 @@ const router = express.Router();
 
 // POST /api/orders - Place an order
 router.post('/', authenticateToken, (req, res) => {
-  const { items, paymentMethod, deliveryAddress } = req.body;
+  const { items, paymentMethod, paymentProvider, deliveryAddress } = req.body;
 
   if (!items || items.length === 0) {
     return res.status(400).json({ error: 'Cart is empty' });
   }
   if (!paymentMethod || !['upi', 'card'].includes(paymentMethod)) {
     return res.status(400).json({ error: 'Valid payment method required (upi or card)' });
+  }
+  if (paymentMethod === 'upi' && !['phonepe', 'paytm', 'gpay', 'bhim'].includes(paymentProvider)) {
+    return res.status(400).json({ error: 'Valid UPI app required (phonepe, paytm, gpay, bhim)' });
   }
   if (!deliveryAddress || deliveryAddress.trim().length < 5) {
     return res.status(400).json({ error: 'Delivery address is required' });
@@ -65,7 +68,16 @@ router.post('/', authenticateToken, (req, res) => {
     items: orderItems,
     total,
     paymentMethod,
+    paymentProvider: paymentProvider || paymentMethod,
     paymentStatus: 'completed',
+    creditedToBank: {
+      bankName: 'ICIC Bank',
+      accountHolder: 'Bhutham Prashanth',
+      accountNumber: '440001001205',
+      ifscCode: 'ICIC0004400'
+    },
+    creditStatus: 'credited',
+    creditedAt: new Date().toISOString(),
     deliveryAddress: deliveryAddress.trim(),
     deliveryHub,
     status: 'processing',

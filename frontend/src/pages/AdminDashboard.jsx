@@ -241,6 +241,7 @@ export default function AdminDashboard() {
                 <th className="pb-3 font-medium">Items</th>
                 <th className="pb-3 font-medium">Total</th>
                 <th className="pb-3 font-medium">Payment</th>
+                <th className="pb-3 font-medium">Credit</th>
                 <th className="pb-3 font-medium">Status</th>
               </tr>
             </thead>
@@ -261,7 +262,20 @@ export default function AdminDashboard() {
                   </td>
                   <td className="py-4 pr-4">{order.items.reduce((sum, item) => sum + item.quantity, 0)}</td>
                   <td className="py-4 pr-4 font-semibold text-amber-700">Rs. {order.total}</td>
-                  <td className="py-4 pr-4">{order.paymentMethod.toUpperCase()}</td>
+                  <td className="py-4 pr-4">
+                    <div>
+                      <p className="font-semibold">{(order.paymentProvider || order.paymentMethod || 'upi').toUpperCase()}</p>
+                      <p className="text-xs text-zinc-500">Method: {(order.paymentMethod || 'upi').toUpperCase()}</p>
+                    </div>
+                  </td>
+                  <td className="py-4 pr-4">
+                    <div>
+                      <p className={`font-semibold ${(order.creditStatus || '') === 'credited' ? 'text-emerald-700' : 'text-zinc-700'}`}>
+                        {(order.creditStatus || 'pending').toUpperCase()}
+                      </p>
+                      <p className="text-xs text-zinc-500">{order.creditedAt ? new Date(order.creditedAt).toLocaleString() : 'Not credited'}</p>
+                    </div>
+                  </td>
                   <td className="py-4 pr-4">
                     <select
                       value={order.status}
