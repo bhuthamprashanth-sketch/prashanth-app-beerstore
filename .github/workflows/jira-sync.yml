@@ -1,0 +1,84 @@
+name: Jira BB Sync
+
+on:
+  pull_request:
+    branches: [develop, qa, release, main]
+    types: [opened, reopened, edited, ready_for_review, closed]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  jira-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Jira
+        uses: atlassian/gajira-login@v3
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Extract BB issue key
+        id: key
+        shell: bash
+        run: |
+          TEXT="${{ github.event.pull_request.title }} ${{ github.event.pull_request.body }} ${{ github.head_ref }}"
+          ISSUE=$(echo "$TEXT" | grep -oE 'BB-[0-9]+' | head -1 || true)
+          echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
+          echo "Detected issue: $ISSUE"
+
+      - name: Add PR link comment in Jira
+        if: steps.key.outputs.issue != ''
+        uses: atlassian/gajira-comment@v3
+        with:
+          issue: ${{ steps.key.outputs.issue }}
+          comment: |
+            GitHub PR update:
+            - PR: [${{ github.event.pull_request.title }}](${{ github.event.pull_request.html_url }})
+            - Branch: `${{ github.head_ref }}` -> `${{ github.base_ref }}`
+            - Event: `${{ github.event.action }}`
+            - Author: `${{ github.event.pull_request.user.login }}`
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Move issue to In Review when PR opens
+        if: steps.key.outputs.issue != '' && (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review')
+        uses: atlassian/gajira-transition@v3
+        with:
+          issue: ${{ steps.key.outputs.issue }}
+          transition: In Review
+        continue-on-error: true
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Move issue to Done when merged to main
+        if: steps.key.outputs.issue != '' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.base_ref == 'main'
+        uses: atlassian/gajira-transition@v3
+        with:
+          issue: ${{ steps.key.outputs.issue }}
+          transition: Done
+        continue-on-error: true
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Move issue to Testing when merged to qa/release
+        if: steps.key.outputs.issue != '' && github.event.action == 'closed' && github.event.pull_request.merged == true && (github.base_ref == 'qa' || github.base_ref == 'release')
+        uses: atlassian/gajira-transition@v3
+        with:
+          issue: ${{ steps.key.outputs.issue }}
+          transition: Testing
+        continue-on-error: true
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
